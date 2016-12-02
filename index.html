@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta http-equiv="x-ua-compatible" content="ie=edge">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+		<title>uibench (domvm)</title>
+		<link rel="stylesheet" href="https://localvoid.github.io/uibench-base/0.1.0/styles.css">
+		<script src="https://localvoid.github.io/uibench-base/0.1.0/uibench.js"></script>
+		<script src="https://rawgit.com/leeoniya/domvm/2.x-dev/dist/pico/domvm.pico.min.js"></script>
+	</head>
+	<body>
+		<div id="App"></div>
+
+		<script>
+			var el = domvm.defineElement;
+			var tx = domvm.defineText;
+
+			function onClick (e) {
+				console.log('Clicked' + this);
+        		e.stopPropagation();
+			}
+
+			function TableCell (text) {
+	    		return el('td', {class: 'TableCell', onclick: onClick.bind(text)}, [tx(text)])
+			}
+
+			function TableRow (data) {
+			    var classes = 'TableRow';
+
+			    if (data.active) {
+		      		classes = 'TableRow active';
+			    }
+
+			    var cells = data.props;
+			    var length = cells.length;
+			    var children = new Array(length+1);
+
+			    children[0] = TableCell('#' + data.id);
+
+			    for (var i = 0; i < length; i++) {
+		      		children[i+1] = TableCell(cells[i]);
+			    }
+
+	    		return el('tr', {class: classes, 'data-id': data.id}, children)
+			}
+
+			var propsTable = {class: 'Table'};
+
+			function Table (items) {
+		    	var length   = items.length;
+		    	var children = new Array(length);
+
+	    		for (var i = 0; i < length; i = i + 1) {
+					children[i] = TableRow(items[i]);
+	    		}
+
+		    	return el('table', {class: 'Table'}, [el('tbody', {}, children)]);
+			}
+
+			function AnimBox (props) {
+		    	var time = props.time;
+	    		var style = 'border-radius:'+(time % 10)+'px;background:rgba(0,0,0,'+(0.5 + ((time % 10) / 10))+');';
+
+				return el('div', {class: 'AnimBox', 'data-id': props.id, style: style}, [])
+			}
+
+			function Anim (items) {
+		    	var length = items.length;
+	    		var children = new Array(length);
+
+	    		for (var i = 0; i < length; i = i + 1) {
+	      			children[i] = AnimBox(items[i]);
+	    		}
+
+		    	return el('div', {class: 'Anim'}, children);
+			}
+
+			function TreeNode (props) {
+			    var dataChildren = props.children;
+			    var length = dataChildren.length;
+			    var children = new Array(length);
+
+			    for (var i = 0; i < length; i = i + 1) {
+		      		var n = dataChildren[i];
+
+		      		if (n.container) {
+			        	children[i] = TreeNode(n);
+		      		} else {
+			        	children[i] = TreeLeaf(n.id);
+		      		}
+			    }
+
+			    return el('ul', {class: 'TreeNode'}, children);
+			}
+
+			function Tree (root) {
+				return el('div', {class: 'Tree'}, [TreeNode(root)])
+			}
+
+			function TreeLeaf (id) {
+				return el('li', {class: 'TreeLeaf'}, [tx(id)])
+			}
+
+			function Output (samples) {
+				return el('pre', {}, [tx(JSON.stringify(samples, null, ' '))])
+		    }
+
+		    function Main(vm, model) {
+		    	return function(vm, model) {
+		    		var state = model.state || {}
+		    		var section, children = [], location = state.location;
+
+    			    if (location === 'table') {
+    		      		section = Table(state.table.items);
+    			    } else if (location === 'anim') {
+    		      		section = Anim(state.anim.items);
+    			    } else if (location === 'tree') {
+    		      		section = Tree(state.tree.root);
+    			    }
+
+    			    if (section !== void 0) {
+    			    	children[0] = section;
+    			    }
+
+    			    return el('div', {class: 'Main'}, children);
+		    	}
+		    }
+
+			uibench.init('domvm', '2.x-dev');
+
+			document.addEventListener('DOMContentLoaded', function (e) {
+		  		var container = document.getElementById('App');
+		  		var model = {}
+
+			    var mainVm = domvm.createView(Main, model).mount(container);
+
+			  	uibench.run(
+				    function(state) {
+				    	model.state = state
+				    	mainVm.redraw(true);
+				    },
+				    function(samples) {
+				    	model.state = Output(samples)
+				    	mainVm.redraw(true);
+				    }
+		  		);
+			});
+		</script>
+	</body>
+</html>
